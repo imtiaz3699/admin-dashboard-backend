@@ -15,6 +15,10 @@ const managerSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    role:{
+        type:String,
+        default:"manager"
+    },
     assignedUsers: [
       {
         type: mongoose.Schema.Types.ObjectId,
