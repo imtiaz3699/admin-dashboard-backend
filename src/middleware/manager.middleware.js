@@ -7,9 +7,7 @@ export const validateManager = (req, res, next) => {
   if (req.user.role !== "admin" && req.user.role !== "super_admin") {
     return apiErrorResponse(res, 400, "Only admin can add manager.");
   }
-  if (!mongoose.isValidObjectId(createdBy)) {
-    return apiErrorResponse(res, 400, "Invalid admin id.");
-  }
+  
   if (!name) {
     return apiErrorResponse(res, 400, "Name is required.");
   }
@@ -20,7 +18,10 @@ export const validateManager = (req, res, next) => {
     return apiErrorResponse(res, 400, "Password is required.");
   }
   if (!createdBy) {
-    return apiErrorResponse(res, 400, "Manager is required.");
+    return apiErrorResponse(res, 400, "Admin id is required.");
+  }
+  if (!mongoose.isValidObjectId(createdBy)) {
+    return apiErrorResponse(res, 400, "Invalid admin id.");
   }
   next();
 };
@@ -43,12 +44,6 @@ export const validateUpdateManager = (req, res, next) => {
   if (!email) {
     return apiErrorResponse(res, 400, "Email is required.");
   }
-  if (!password) {
-    return apiErrorResponse(res, 400, "Password is required.");
-  }
-  if (!createdBy) {
-    return apiErrorResponse(res, 400, "Manager is required.");
-  }
   next();
 };
 export const validateGetManagers = async (req, res, next) => {
@@ -68,3 +63,14 @@ export const validateDeleteManager = async (req, res, next) => {
   }
   next();
 };
+
+export const validateLoginManager = (req,res,next) => {
+    const {email,password} = req.body;
+    if(!email) {
+        return apiErrorResponse(res, 400, "Email is required.");    
+    }
+    if(!password) {
+        return apiErrorResponse(res, 400, "Password is required.");    
+    }
+    next();
+}
