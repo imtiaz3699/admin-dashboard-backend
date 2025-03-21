@@ -14,7 +14,7 @@ export const addTask = async (req, res) => {
 
 export const updateTask = async (req, res) => {
   const taskId = req.params.id;
-  let query = {_id:taskId};
+  let query = { _id: taskId };
   if (req.user.role === "manager") {
     query = {
       _id: taskId,
@@ -28,11 +28,11 @@ export const updateTask = async (req, res) => {
     };
   }
   try {
-    const task = await Task.findOneAndUpdate(query,req.body,{new:true});
+    const task = await Task.findOneAndUpdate(query, req.body, { new: true });
     if (!task) {
       return apiErrorResponse(res, 400, "Task not found.");
     }
-    return apiSuccessResponse(res, 200, "Task updated successfully.",task);
+    return apiSuccessResponse(res, 200, "Task updated successfully.", task);
   } catch (e) {
     console.log(e);
     return apiErrorResponse(res, 500, `Something went wrong.${e.message}`);
