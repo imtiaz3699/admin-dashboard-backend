@@ -3,7 +3,7 @@ import { apiErrorResponse, apiSuccessResponse } from "../utils/helpers.js";
 import Admin from "../models/admin.model.js";
 
 export const validateAdmin = async (req, res, next) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role,createdBy } = req.body;
   if (!name) {
     return apiErrorResponse(res, 400, "Name is required.");
   }
@@ -13,9 +13,15 @@ export const validateAdmin = async (req, res, next) => {
   if (!password) {
     return apiErrorResponse(res, 400, "Password is required.");
   }
+  if(!createdBy) {
+    return apiErrorResponse(res, 400, "Admin id is required.");
+  }
   const adminExists = await Admin.findOne({ email });
   if (adminExists) {
     return apiErrorResponse(res, 400, "Admin with this email already exists.");
+  }
+  if(!mongoose.isValidObjectId(createdBy)) {
+    return apiErrorResponse(res, 400, "Invalid admin id.");
   }
   const validRole = ["super_admin", "admin"];
   if (role && !validRole.includes(role)) {

@@ -10,7 +10,7 @@ export const addAdmin = async (req, res) => {
     return apiSuccessResponse(res, 200, "Admin added successfully", obj);
   } catch (e) {
     console.log(e);
-    return apiErrorResponse(res, 500, "Something went wrong");
+    return apiErrorResponse(res, 500, `Something went wrong ${e.message}`);
   }
 };
 
@@ -31,6 +31,9 @@ export const deleteAdmin = async (req, res) => {
   const adminId = req.params.id;
   try {
     const admin = await Admin.findByIdAndDelete(adminId);
+    if(!admin) {
+      return apiErrorResponse(res, 400, "Admin not found.");
+    }
     return apiSuccessResponse(res, 200, "Admin deleted successfully", admin);
   } catch (e) {
     console.log(e);
