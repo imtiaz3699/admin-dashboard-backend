@@ -6,6 +6,8 @@ from pathlib import Path
 
 from docx import Document
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 from docx.shared import Pt
 
 
@@ -916,12 +918,20 @@ def add_formatted_paragraph(document, text, style=None, indent_pt=0):
     paragraph = document.add_paragraph(style=style)
     if indent_pt:
         paragraph.paragraph_format.left_indent = Pt(indent_pt)
+    paragraph.paragraph_format.line_spacing = 1.3
+    paragraph.paragraph_format.space_after = Pt(6)
+    if style in {"List Bullet", "List Number"}:
+        paragraph.paragraph_format.space_before = Pt(0)
+        paragraph.paragraph_format.space_after = Pt(0)
     render_inline_formatting(paragraph, text)
     return paragraph
 
 
 def add_code_block(document, lines):
-    paragraph = document.add_paragraph()
+    paragraph = document.add_paragraph(style="Intense Quote")
+    paragraph.paragraph_format.left_indent = Pt(18)
+    paragraph.paragraph_format.space_before = Pt(6)
+    paragraph.paragraph_format.space_after = Pt(6)
     for idx, line in enumerate(lines):
         run = paragraph.add_run(line)
         run.font.name = "Courier New"
@@ -957,15 +967,110 @@ def add_table(document, table_lines):
             row[idx].text = text
 
 
+def add_table_of_contents(document):
+    toc_heading = document.add_paragraph("Table of Contents")
+    toc_heading.style = "TOC Heading"
+
+    paragraph = document.add_paragraph()
+    run = paragraph.add_run()
+
+    fld_char_begin = OxmlElement("w:fldChar")
+    fld_char_begin.set(qn("w:fldCharType"), "begin")
+    run._r.append(fld_char_begin)
+
+    instr_text = OxmlElement("w:instrText")
+    instr_text.set(qn("xml:space"), "preserve")
+    instr_text.text = 'TOC \\o "1-3" \\h \\z \\u'
+    run._r.append(instr_text)
+
+    fld_char_separate = OxmlElement("w:fldChar")
+    fld_char_separate.set(qn("w:fldCharType"), "separate")
+    run._r.append(fld_char_separate)
+
+    placeholder = OxmlElement("w:t")
+    placeholder.text = ""
+    run._r.append(placeholder)
+
+    fld_char_end = OxmlElement("w:fldChar")
+    fld_char_end.set(qn("w:fldCharType"), "end")
+    run._r.append(fld_char_end)
+
+    note = document.add_paragraph()
+    note_run = note.add_run(
+        "Note: In Word, right-click this Table of Contents and choose 'Update Field' to refresh page numbers."
+    )
+    note_run.italic = True
+    note.paragraph_format.space_before = Pt(6)
+    note.paragraph_format.line_spacing = 1.2
+
+
+def create_cover_page(document, title, subtitle, metadata):
+    title_paragraph = document.add_paragraph(title)
+    title_paragraph.style = "Title"
+    title_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    if title_paragraph.runs:
+        title_paragraph.runs[0].font.size = Pt(28)
+
+    if subtitle:
+        subtitle_paragraph = document.add_paragraph(subtitle)
+        subtitle_paragraph.style = "Subtitle"
+        subtitle_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+    document.add_paragraph()
+
+    for label, value in metadata:
+        info_paragraph = document.add_paragraph()
+        info_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+        run_label = info_paragraph.add_run(f"{label}: ")
+        run_label.bold = True
+        info_paragraph.add_run(value)
+        info_paragraph.paragraph_format.space_after = Pt(4)
+
+    document.add_paragraph()
+    document.add_paragraph()
+
+    document.add_page_break()
+
+
 def main():
     document = Document()
-    lines = RAW_CONTENT.splitlines()
+    all_lines = RAW_CONTENT.splitlines()
+
+    title = ""
+    subtitle = ""
+    metadata = []
+    content_start = 0
+
+    for idx, line in enumerate(all_lines):
+        stripped = line.strip()
+        if stripped.startswith("# ") and not title:
+            title = stripped[2:].strip()
+            continue
+        if stripped.startswith("## ") and not subtitle:
+            subtitle = stripped[3:].strip()
+            continue
+        meta_match = re.match(r"\*\*(.+?)\*\*:?(.*)", stripped)
+        if meta_match:
+            label = meta_match.group(1).strip()
+            value = meta_match.group(2).strip()
+            metadata.append((label, value))
+            continue
+        if stripped == "---":
+            content_start = idx + 1
+            break
+
+    if not title:
+        title = "ClassLink Partner Portal API Feasibility Detail Report"
+
+    create_cover_page(document, title, subtitle, metadata)
+    add_table_of_contents(document)
+    document.add_page_break()
+
+    lines = all_lines[content_start:]
 
     in_code_block = False
     code_lines = []
     table_buffer = []
-
-    title_added = False
 
     for line in lines:
         stripped = line.strip()
@@ -1001,19 +1106,12 @@ def main():
             level = len(heading_match.group(1))
             text = heading_match.group(2)
 
-            if not title_added and level == 1:
-                paragraph = document.add_paragraph(text, style="Title")
-                paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-                document.add_paragraph()
-                title_added = True
-                continue
-
-            if title_added and level > 1:
+            if level > 1:
                 level -= 1
 
             level = max(1, min(level, 4))
             heading = document.add_heading(text, level=level)
-            if level == 1 and title_added:
+            if level == 1:
                 heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
             continue
 
