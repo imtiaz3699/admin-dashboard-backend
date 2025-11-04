@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 from docx import Document
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.shared import Pt
 
 
@@ -941,6 +942,9 @@ def add_table(document, table_lines):
     hdr_cells = table.rows[0].cells
     for idx, text in enumerate(header_cells):
         hdr_cells[idx].text = text
+        for paragraph in hdr_cells[idx].paragraphs:
+            for run in paragraph.runs:
+                run.bold = True
 
     for line in data_lines:
         if not line.strip():
@@ -960,6 +964,8 @@ def main():
     in_code_block = False
     code_lines = []
     table_buffer = []
+
+    title_added = False
 
     for line in lines:
         stripped = line.strip()
@@ -994,7 +1000,21 @@ def main():
         if heading_match:
             level = len(heading_match.group(1))
             text = heading_match.group(2)
-            document.add_heading(text, level=level)
+
+            if not title_added and level == 1:
+                paragraph = document.add_paragraph(text, style="Title")
+                paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                document.add_paragraph()
+                title_added = True
+                continue
+
+            if title_added and level > 1:
+                level -= 1
+
+            level = max(1, min(level, 4))
+            heading = document.add_heading(text, level=level)
+            if level == 1 and title_added:
+                heading.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
             continue
 
         number_list_match = re.match(r"^\d+\.\s+(.*)", stripped)
